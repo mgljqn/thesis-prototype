@@ -1,65 +1,89 @@
-#define BLYNK_TEMPLATE_ID "prototype1"
-#define BLYNK_DEVICE_NAME "revised proto 1"
-#define BLYNK_AUTH_TOKEN "Ann6QdNGdrkIHC1_LxdR-_bNmlx7QS6Q"
-
-#define BLYNK_PRINT Serial
-#include <WiFi.h>
-#include <WiFiClient.h>
-#include <BlynkSimpleEsp32.h>
-#include<DHT.h>
-#define DHTPIN 13
-#define DHTTYPE DHT11 
-DHT dht(DHTPIN, DHTTYPE);
-int sm_sensor=34;
-int light_sensor=35;
-
- BLYNK_WRITE(V3)
-{
-  int pinvalue = param.asInt();
-  digitalWrite(15,pinvalue);
-}  
-
-char auth[] = BLYNK_AUTH_TOKEN;
-
-char ssid[] = "";  // wifi name
-char pass[] = "";  // wifi password
-
-BlynkTimer timer;
-
-void sendSensor()
-{
-  //Reading temperature or humidity takes about 250 milliseconds
-  // Sensor readings may also be up to 2 seconds old
-  float h = dht.readHumidity();
-  // Read temperature as Celsius (the default)
-  float t = dht.readTemperature();
-  int moisture_sensor= analogRead(sm_sensor);
-  int light_intensity=analogRead(light_sensor);
-  // Check if any reads failed and exit early (to try again).
-   if (isnan(h) || isnan(t)) {
-    Serial.println(F("Failed to read from DHT sensor!"));
-    return;
-  }
-  // send any value at any time.
-  // don't send more that 10 values per second.
-    Blynk.virtualWrite(V0, t);
-    Blynk.virtualWrite(V1, h);
-    Blynk.virtualWrite(V2, moisture_sensor);
-    Blynk.virtualWrite(V4, light_intensity);
-    delay(500);
-}
-void setup()
-{   
-  
-   Serial.begin(9600);
-   pinMode (15,OUTPUT);
-  Blynk.begin(auth, ssid, pass);
-  timer.setInterval(100L, sendSensor);
+Soil Moisture Meter
+  soil_meter.ino
+  Measures percentage of moisture in soil
+  Uses Capacitive sensor
+  Requires calibration values
  
-  }
-
-void loop()
-{
-  Blynk.run();
-  timer.run();
- }
+  DroneBot Workshop 2022
+  https://dronebotworkshop.com
+*/
+ 
+// Include required libraries
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+ 
+// Set OLED size in pixels
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+ 
+// Set OLED parameters
+#define OLED_RESET -1
+#define SCREEN_ADDRESS 0x3C
+ 
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+ 
+// Sensor constants - replace with values from calibration sketch
+ 
+// Constant for dry sensor
+const int DryValue = 2590;
+ 
+// Constant for wet sensor
+const int WetValue = 1430;
+ 
+// Variables for soil moisture
+int soilMoistureValue;
+int soilMoisturePercent;
+ 
+// Analog input port
+#define SENSOR_IN 0
+ 
+void setup() {
+ 
+  // Setup Serial Monitor
+  Serial.begin(9600);
+ 
+  // Initialize I2C display using 3.3-volts from VCC directly
+  display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
+  display.clearDisplay();
+ 
+  // Set ADC to use 12 bits
+  analogReadResolution(12);
+ 
+}
+void loop() {
+ 
+  // Get soil mositure value
+  soilMoistureValue = analogRead(SENSOR_IN);
+ 
+  // Print to serial monitor
+  Serial.print(soilMoistureValue);
+  Serial.print(" - ");
+ 
+  // Determine soil moisture percentage value
+  soilMoisturePercent = map(soilMoistureValue, DryValue, WetValue, 0, 100);
+ 
+  // Keep values between 0 and 100
+  soilMoisturePercent = constrain(soilMoisturePercent, 0, 100);
+ 
+  // Print to serial monitor
+  Serial.println(soilMoisturePercent);
+ 
+  // Position and print text to OLED
+  display.setCursor(20, 0);
+  display.setTextSize(2);
+  display.setTextColor(WHITE);
+  display.println("Moisture");
+ 
+  display.setCursor(30, 40);
+  display.setTextSize(3);
+  display.setTextColor(WHITE);
+  display.print(soilMoisturePercent);
+  display.println("%");
+  display.display();
+ 
+  delay(250);
+  display.clearDisplay();
+ 
+  delay(100);
+}
